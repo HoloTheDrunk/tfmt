@@ -1,42 +1,46 @@
 ast = _{ SOI ~ type_tuple ~ EOI }
 
 type_tuple = !{
-	(type | tuple) ~ ("," ~ (type | tuple))*
+    (type | tuple) ~ ("," ~ (type | tuple))*
 }
 
 tuple = !{
-	"(" ~ type_tuple ~ ")"
+    "(" ~ type_tuple ~ ")"
 }
 
 type = !{
-	lifetime? ~ impl_marker? ~ (
-      ((regular_type | turbofish_type) ~ ("as" ~ type)?)
-      | closure_type
+    reference? ~ impl_marker? ~ (
+        ((regular_type | turbofish_type) ~ ("as" ~ type)?)
+        | closure_type
     )
-}
-
-lifetime = @{
-	"&'" ~ ("_" | ASCII_ALPHA_LOWER+) ~ WHITESPACE+
-}
-impl_marker = @{
-	("dyn" | "impl") ~ WHITESPACE+
 }
 
 regular_type = !{ typename ~ ("<" ~ type_tuple ~ ">")? }
 turbofish_type = !{
-	"<" ~ type_tuple ~ ">::" ~ typename
+    "<" ~ type_tuple ~ ">::" ~ typename
 }
 closure_type = !{
-	"|" ~ type_tuple? ~ "|" ~ "->" ~ type_tuple
+    "|" ~ type_tuple? ~ "|" ~ "->" ~ type_tuple
 }
 
 typename = @{
-	("&" ~ "mut"?)? ~ (
-      "_"
-      | "()"
-      | "{unknown}"
-      | (ASCII_ALPHA ~ ASCII_ALPHANUMERIC*)
+    reference? ~ (
+        "_"
+        | "()"
+        | "{unknown}"
+        | (ASCII_ALPHA ~ ASCII_ALPHANUMERIC*)
     )
+}
+
+reference = ${
+    ("&" ~ lifetime? ~ WHITESPACE* ~ "mut" ~ WHITESPACE+)
+    | ("&" ~ lifetime? ~ WHITESPACE* ~ !"mut")
+}
+lifetime = @{
+    "'" ~ ("_" | (ASCII_ALPHA ~ ASCII_ALPHANUMERIC+)) ~ WHITESPACE
+}
+impl_marker = @{
+    ("dyn" | "impl") ~ WHITESPACE+
 }
 
 WHITESPACE = _{ " " | "\t" | NEWLINE }
