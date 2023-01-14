@@ -37,7 +37,7 @@ reference = ${
     | ("&" ~ lifetime? ~ WHITESPACE* ~ !"mut")
 }
 lifetime = @{
-    "'" ~ ("_" | (ASCII_ALPHA ~ ASCII_ALPHANUMERIC+)) ~ WHITESPACE
+    "'" ~ ("_" | (ASCII_ALPHA ~ ASCII_ALPHANUMERIC*)) ~ WHITESPACE
 }
 impl_marker = @{
     ("dyn" | "impl") ~ WHITESPACE+
