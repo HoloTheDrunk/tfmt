@@ -24,6 +24,7 @@ lazy_static::lazy_static! {
     };
 }
 
+#[derive(Debug)]
 enum Type {
     SimpleType(String),
     Tuple(Vec<Type>),
@@ -38,10 +39,12 @@ enum Type {
     },
 }
 
+#[derive(Debug)]
 struct TypeExpr {
-    lifetime: Option<String>,
+    reference: Option<String>,
     impl_marker: Option<String>,
     r#type: Type,
+    as_target: Option<Box<Type>>,
 }
 
 fn main() {
