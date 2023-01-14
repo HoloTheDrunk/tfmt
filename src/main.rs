@@ -1,5 +1,7 @@
+mod parsing;
+
 use clap::Parser as CParser;
-use pest::{iterators::Pair, pratt_parser::PrattParser, Parser};
+use pest::{iterators::Pair, Parser};
 
 #[derive(CParser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -13,58 +15,22 @@ struct Args {
 #[grammar = "grammar.pest"]
 pub struct TParser;
 
-lazy_static::lazy_static! {
-    static ref PRATT_PARSER: PrattParser<Rule> = {
-        use pest::pratt_parser::Op;
-        use Rule::*;
-
-        // Precedence is defined lowest to highest
-        PrattParser::new()
-            .op(Op::prefix(type_tuple))
-    };
-}
-
-#[derive(Debug)]
-enum Type {
-    SimpleType(String),
-    Tuple(Vec<Type>),
-    AsType {
-        name: String,
-        types: Vec<Type>,
-        target: Box<Type>,
-    },
-    GenericType {
-        name: String,
-        types: Vec<Type>,
-    },
-}
-
-#[derive(Debug)]
-struct TypeExpr {
-    reference: Option<String>,
-    impl_marker: Option<String>,
-    r#type: Type,
-    as_target: Option<Box<Type>>,
-}
-
 fn main() {
     let args = Args::parse();
 
-    let parsed = TParser::parse(Rule::ast, args.input.as_ref())
+    let type_tuple = TParser::parse(Rule::ast, args.input.as_ref())
         .expect("Unsuccessful parse")
         .next()
         .unwrap();
 
-    recursive_print(Some(&parsed), 0);
+    recursive_print(Some(&type_tuple.into_inner().next().unwrap()), 0);
 }
 
 fn recursive_print(cur: Option<&Pair<Rule>>, depth: u8) {
     if let Some(node) = cur {
         let rule = node.as_rule();
 
-        let indent = (0..depth)
-            .map(|_| "\x1b[32m|   \x1b[0m")
-            .collect::<String>();
+        let indent = format!("\x1b[32m{}\x1b[0m", "|   ".repeat(depth as usize));
 
         println!(
             "{}\x1b[1;33m{:?}\x1b[0m:'{}'",
