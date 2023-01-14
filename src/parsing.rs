@@ -67,7 +67,7 @@ macro_rules! fields {
 }
 
 pub fn parse_type_tuple(
-    pair: Pair<Rule>,
+    pair: &Pair<Rule>,
     rstack: &mut Vec<Rule>,
 ) -> Result<TypeExpr, PestError<Rule>> {
     fields!(pair |> children :> types);
@@ -81,7 +81,9 @@ pub fn parse_type_tuple(
 
                     let res = match pair.as_rule() {
                         Rule::r#type => todo!(),
-                        Rule::tuple => parse_type_tuple(pair.into_inner().next().unwrap(), rstack)?,
+                        Rule::tuple => {
+                            parse_type_tuple(&pair.into_inner().next().unwrap(), rstack)?
+                        }
                         _ => unreachable!(),
                     };
 
@@ -170,7 +172,31 @@ fn parse_type(pair: &Pair<Rule>, rstack: &mut Vec<Rule>) -> Result<Type, PestErr
 }
 
 fn parse_regular_type(pair: &Pair<Rule>, rstack: &mut Vec<Rule>) -> Result<Type, PestError<Rule>> {
-    todo!()
+    fields!(pair |> children: typename :> generics);
+
+    let typename = typename.as_str().trim().to_owned();
+
+    if let Some(generic_type) = generics.get(0) {
+        let Type::List(types) = parse_type_tuple(generic_type, rstack)?.r#type 
+            else { 
+                return Err(
+                    PestError::new_from_span(
+                        ErrorVariant::ParsingError { 
+                            positives: vec![], 
+                            negatives: vec![pair.as_rule()] 
+                        }, 
+                        pair.as_span()
+                    )
+                );
+            };
+
+        Ok(Type::GenericType {
+            name: typename,
+            types,
+        })
+    } else {
+        Ok(Type::SimpleType(typename))
+    }
 }
 
 fn parse_turbofish_type(
