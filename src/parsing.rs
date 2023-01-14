@@ -1,7 +1,7 @@
 use super::Rule;
 use pest::{
     error::{Error as PestError, ErrorVariant},
-    iterators::{Pair, Pairs},
+    iterators::Pair,
 };
 
 #[derive(Debug)]
@@ -68,7 +68,6 @@ macro_rules! fields {
 
 pub fn parse_type_tuple(
     pair: &Pair<Rule>,
-    rstack: &mut Vec<Rule>,
 ) -> Result<TypeExpr, PestError<Rule>> {
     fields!(pair |> children :> types);
 
@@ -77,18 +76,13 @@ pub fn parse_type_tuple(
             types
                 .into_iter()
                 .map(|pair| -> Result<TypeExpr, PestError<Rule>> {
-                    rstack.push(pair.as_rule());
-
-                    let res = match pair.as_rule() {
+                    Ok(match pair.as_rule() {
                         Rule::r#type => todo!(),
                         Rule::tuple => {
-                            parse_type_tuple(&pair.into_inner().next().unwrap(), rstack)?
+                            parse_type_tuple(&pair.into_inner().next().unwrap())?
                         }
                         _ => unreachable!(),
-                    };
-
-                    rstack.pop();
-                    Ok(res)
+                    })
                 })
                 .collect::<Result<Vec<TypeExpr>, PestError<Rule>>>()?,
         ),
@@ -96,7 +90,7 @@ pub fn parse_type_tuple(
     })
 }
 
-fn parse_type_expr(pair: &Pair<Rule>, rstack: &mut Vec<Rule>) -> Result<TypeExpr, PestError<Rule>> {
+fn parse_type_expr(pair: &Pair<Rule>) -> Result<TypeExpr, PestError<Rule>> {
     fields!(pair |> children :> drain);
 
     let (reference, impl_marker, inner, as_target) = {
@@ -137,47 +131,38 @@ fn parse_type_expr(pair: &Pair<Rule>, rstack: &mut Vec<Rule>) -> Result<TypeExpr
         }
     };
 
-    rstack.push(pair.as_rule());
-
-    let res = Ok(TypeExpr {
+    Ok(TypeExpr {
         original: pair.as_str().to_owned(),
         reference: reference.map(|reference| reference.as_str().to_owned()),
         impl_marker: impl_marker.map(|impl_marker| impl_marker.as_str().to_owned()),
-        r#type: parse_type(inner, rstack)?,
+        r#type: parse_type(inner)?,
         as_target: {
             if let Some(as_target) = as_target {
-                let r#type = parse_type(as_target, rstack)?;
+                let r#type = parse_type(as_target)?;
                 Some(Box::new(r#type))
             } else {
                 None
             }
         },
-    });
-
-    rstack.pop();
-
-    res
+    })
 }
 
-fn parse_type(pair: &Pair<Rule>, rstack: &mut Vec<Rule>) -> Result<Type, PestError<Rule>> {
-    rstack.push(pair.as_rule());
-    let res = match pair.as_rule() {
-        Rule::regular_type => parse_regular_type(pair, rstack),
-        Rule::turbofish_type => parse_turbofish_type(pair, rstack),
-        Rule::closure_type => parse_closure_type(pair, rstack),
+fn parse_type(pair: &Pair<Rule>) -> Result<Type, PestError<Rule>> {
+    match pair.as_rule() {
+        Rule::regular_type => parse_regular_type(pair),
+        Rule::turbofish_type => parse_turbofish_type(pair),
+        Rule::closure_type => parse_closure_type(pair),
         _ => unreachable!(),
-    };
-    rstack.pop();
-    res
+    }
 }
 
-fn parse_regular_type(pair: &Pair<Rule>, rstack: &mut Vec<Rule>) -> Result<Type, PestError<Rule>> {
+fn parse_regular_type(pair: &Pair<Rule>) -> Result<Type, PestError<Rule>> {
     fields!(pair |> children: typename :> generics);
 
     let typename = typename.as_str().trim().to_owned();
 
     if let Some(generic_type) = generics.get(0) {
-        let Type::List(types) = parse_type_tuple(generic_type, rstack)?.r#type 
+        let Type::List(types) = parse_type_tuple(generic_type)?.r#type 
             else { 
                 return Err(
                     PestError::new_from_span(
@@ -200,12 +185,11 @@ fn parse_regular_type(pair: &Pair<Rule>, rstack: &mut Vec<Rule>) -> Result<Type,
 }
 
 fn parse_turbofish_type(
-    pair: &Pair<Rule>,
-    rstack: &mut Vec<Rule>,
+    _pair: &Pair<Rule>,
 ) -> Result<Type, PestError<Rule>> {
     todo!()
 }
 
-fn parse_closure_type(pair: &Pair<Rule>, rstack: &mut Vec<Rule>) -> Result<Type, PestError<Rule>> {
+fn parse_closure_type(_pair: &Pair<Rule>) -> Result<Type, PestError<Rule>> {
     todo!()
 }
